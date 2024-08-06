@@ -1,75 +1,122 @@
-/* eslint-disable react/prop-types */
-import {useEffect,useState} from "react";
+import React, { useState, useEffect } from "react";
 import "./App.css";
-import CharacterDetail from "./components/CharacterDetail";
-import CharacterList from "./components/CharacterList";
-import Navbar,{SearchResult,Search,Favourites} from "./components/Navbar";
-import { Toaster} from "react-hot-toast";
-import useCharacters from "./hooks/useCharacter";
 
-import useLocalStorage from "./hooks/useLocalStorage";
+function App() {
+  const [todos, setTodos] = useState([]);
+  const [newTodo, setNewTodo] = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const [currentTodo, setCurrentTodo] = useState(null);
+  const [editedTodo, setEditedTodo] = useState("");
 
+  useEffect(() => {
+    const savedTodos = JSON.parse(localStorage.getItem("todos")) || [];
+    setTodos(savedTodos);
+  }, []);
 
+  useEffect(() => {
+    localStorage.setItem("todos", JSON.stringify(todos));
+  }, [todos]);
 
-function App(){
-  const [query,setQuery]=useState("");
-  const [count,setCount]=useState(0);
-  const  {isLoading, characters }= useCharacters(
-    "https://rickandmortyapi.com/api/character/?name",
-    query);
-  const [selectedId,setSelectedId]=useState(null);
- const [favourites,setFavourites]=useLocalStorage("FAVOURITES",[])
+  const addNewTodo = (e) => {
+    e.preventDefault();
+    if (newTodo.trim() === "") return;
+    const newTodos = [
+      ...todos,
+      { id: Date.now(), title: newTodo, completed: false },
+    ];
+    setTodos(newTodos);
+    setNewTodo("");
+  };
 
-  
+  const deleteTodo = (id) => {
+    const updatedTodos = todos.filter((todo) => todo.id !== id);
+    setTodos(updatedTodos);
+  };
 
+  const completeTodo = (id) => {
+    const updatedTodos = todos.map((todo) =>
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    );
+    setTodos(updatedTodos);
+  };
 
-useEffect(()=>{
-  const interval=setInterval(()=>setCount((c)=>c+1),1000);
-  return()=>{ clearInterval(interval);};
-},
-[count]
-);
+  const startEditing = (todo) => {
+    setEditMode(true);
+    setCurrentTodo(todo);
+    setEditedTodo(todo.title);
+  };
 
- 
-  const handleSelectCharacter=(id) => {
-    setSelectedId((prevId) => (prevId===id?null:id)); 
-  }; 
-const handleAddFavourite=(char) => {
-  setFavourites((prevFav)=>[...prevFav,char]);
-};
-const handleDeleteFavourite=(id) => {
-  setFavourites((preFav) => preFav.filter((fav) => fav.id!==id));
-}
-const isAddToFavourite=favourites.map((fav) => fav.id).includes(selectedId);
+  const saveEdit = (e) => {
+    e.preventDefault();
+    if (editedTodo.trim() === "") return;
+    const updatedTodos = todos.map((todo) =>
+      todo.id === currentTodo.id ? { ...todo, title: editedTodo } : todo
+    );
+    setTodos(updatedTodos);
+    setEditMode(false);
+    setCurrentTodo(null);
+    setEditedTodo("");
+  };
+
   return (
-  <div className="app">
-     <Toaster/>  
-   <Navbar>
-   <Search query={query} setQuery={setQuery}/>
-    <SearchResult  numOfResult={characters.length}/>
-    <Favourites 
-    favourites={favourites} 
-    onDeleteFavourite={handleDeleteFavourite}/>
-    </Navbar>
-    
-    <Main>
-
-      <CharacterList 
-      selectedId={selectedId}
-      characters={characters} 
-      isLoading={isLoading} 
-      onSelectCharacter={handleSelectCharacter}
-      />
-      <CharacterDetail 
-      selectedId={selectedId}
-       onAddFavourite={handleAddFavourite} 
-       isAddToFavourite={isAddToFavourite}/>
-    </Main>
+    <div className="App">
+      <header>
+        <h1>Todo List</h1>
+      </header>
+      <section className="container">
+        <div className="form-container">
+          <form onSubmit={editMode ? saveEdit : addNewTodo}>
+            <input
+              className="todo-input"
+              type="text"
+              value={editMode ? editedTodo : newTodo}
+              onChange={(e) =>
+                editMode
+                  ? setEditedTodo(e.target.value)
+                  : setNewTodo(e.target.value)
+              }
+            />
+            <button className="todo-button" type="submit">
+              {editMode ? "Save" : "Add"}
+            </button>
+          </form>
+        </div>
+        <div className="todo-container">
+          <ul className="todo-list">
+            {todos.map((todo) => (
+              <li
+                key={todo.id}
+                className={`todo ${todo.completed ? "completed" : ""}`}
+              >
+                <span>{todo.title}</span>
+                <span>
+                  <input
+                    type="checkbox"
+                    checked={todo.completed}
+                    onChange={() => completeTodo(todo.id)}
+                  />
+                </span>
+                <span>
+                  <button
+                    className="edit-button"
+                    onClick={() => startEditing(todo)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="delete-button"
+                    onClick={() => deleteTodo(todo.id)}
+                  >
+                    Delete
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
     </div>
   );
-  }
+}
 
 export default App;
-function Main({children}){
-  return <div className="main">{children}</div>
-}
